@@ -427,24 +427,18 @@ void UBFMSearcherLocal::predict(Node *node) {
             score = nn::NNScore(0.0);
             state = NodeDraw;
         } else {
-            auto search_score = 0;
-            search::search_root(pos, 5, search_score);
-            if (search_score == 1) {
-                // Tee<<pos<<std::endl;
-                // Tee<<"win\n";
-                score = score_win(child->ply+2);
-                state = NodeWin;
-            } else if (search_score == -1) {
-                // Tee<<pos<<std::endl;
-                // Tee<<"lose\n";
-                score = score_lose(child->ply+2);
-                state = NodeLose;
-            } else if (search_score == 0) {
-                // Tee<<pos<<std::endl;
-                // Tee<<"eq\n";
-                score = nn::NNScore(0.0);
-                state = NodeDraw;
-            }
+            // auto search_score = 0;
+            // search::search_root(pos, 5, search_score);
+            // if (search_score == 1) {
+            //     score = score_win(child->ply+2);
+            //     state = NodeWin;
+            // } else if (search_score == -1) {
+            //     score = score_lose(child->ply+2);
+            //     state = NodeLose;
+            // } else if (search_score == 0) {
+            //     score = nn::NNScore(0.0);
+            //     state = NodeDraw;
+            // }
         }
         ASSERT2(std::fabs(score)<=1,{
             Tee<<child->ply<<std::endl;

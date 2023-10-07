@@ -134,6 +134,9 @@ private:
     void choice_best_move_e_greedy();
     void choice_best_move_count();
     void choice_best_move_ordinal();
+    void choice_best_move_diff();
+    void choice_best_move_softmax();
+    void choice_best_move_random();
     int po_num = 100;
 };
 
@@ -416,9 +419,12 @@ void DescentSearcherLocal::add_replay_buffer(ubfm::Node *node) {
 Move DescentSearcherLocal::execute_descent(game::Position &pos) {
     this->root_node()->pos = pos;
     this->search_descent(this->po_num);
-    this->choice_best_move_e_greedy();
+    //this->choice_best_move_e_greedy();
     //this->choice_best_move_count();
     //this->choice_best_move_ordinal();
+    //this->choice_best_move_diff();
+    //this->choice_best_move_softmax();
+    this->choice_best_move_random();
     if (USE_DESCENT) {
         this->add_replay_buffer(this->root_node());        
     } else {
@@ -448,12 +454,12 @@ void DescentSearcherLocal::choice_best_move_e_greedy() {
                 find_resolved_flag = true;
                 break;
             } else if (child->is_draw()) {
-                scores[i] = NNScore(0.0) + (rand_double() / 1000);
+                scores[i] = child->n + (rand_double() / 1000);
             } else if (child->is_win()) {
-                scores[i] = ubfm::score_lose(0) + (rand_double() / 1000);
+                scores[i] = 0;
             }
         } else {
-            scores[i] = -child->w;
+            scores[i] = child->n + (rand_double() / 1000);
         }
     }
     auto index = -1;
@@ -570,6 +576,139 @@ void DescentSearcherLocal::choice_best_move_ordinal() {
     this->root_node()->best_move = child->parent_move;
 
 }
+
+void DescentSearcherLocal::choice_best_move_diff() {
+    std::vector<NNScore> scores;
+    REP(i, this->root_node()->child_len) {
+        scores.push_back(NNScore(0.0));
+    }
+    auto find_resolved_flag = false;
+    auto best_score = NNScore(-2.0);
+    REP(i, this->root_node()->child_len) {
+        auto child = this->root_node()->child(i);
+        if (child->is_resolved()) {
+            if (child->is_lose()) {
+                REP(i, this->root_node()->child_len) {
+                    scores[i] = NNScore(0.0);
+                }
+                scores[i] = ubfm::score_win(0);
+                find_resolved_flag = true;
+                break;
+            } else if (child->is_draw()) {
+                scores[i] = NNScore(0.0) + (rand_double() / 1000);
+            } else if (child->is_win()) {
+                scores[i] = ubfm::score_lose(0) + (rand_double() / 1000);
+            }
+        } else {
+            scores[i] = -child->w;
+        }
+        if (scores[i] > best_score) {
+            best_score = scores[i];
+        }
+    }
+    std::vector<nn::Feature> feat_list;
+    std::vector<nn::NNScore> outputs_list;
+    feat_list.push_back(nn::feature(this->root_node()->pos));
+    model::predict(this->gpu_id, feat_list, outputs_list);
+    const auto init_score = outputs_list[0];
+    const auto diff = std::abs(best_score - init_score);
+#if DEBUG_OUT
+    for(auto i = 0; i < scores.size(); i++) {
+        Tee<<i<<":"<<scores[i]<<std::endl;
+    }
+    Tee<<"init:"<<init_score<<std::endl;
+    Tee<<"diff:"<<diff<<std::endl;
+#endif
+
+    auto index = -1;
+    if (!find_resolved_flag && std::abs(diff) > 0.3) {
+        index = my_rand(this->root_node()->child_len);
+    } else {
+        auto iter = std::max_element(scores.begin(), scores.end());
+        index = std::distance(scores.begin(), iter);
+    }
+    auto child = this->root_node()->child(index);
+    this->root_node()->best_move = child->parent_move;
+}
+
+void DescentSearcherLocal::choice_best_move_softmax() {
+    std::vector<NNScore> scores;
+    REP(i, this->root_node()->child_len) {
+        scores.push_back(NNScore(0.0));
+    }
+    auto find_resolved_flag = false;
+    auto max_score = NNScore(-1);
+    REP(i, this->root_node()->child_len) {
+        auto child = this->root_node()->child(i);
+        if (child->is_resolved()) {
+            if (child->is_lose()) {
+                REP(i, this->root_node()->child_len) {
+                    scores[i] = NNScore(0.0);
+                }
+                scores[i] = ubfm::score_win(0);
+                find_resolved_flag = true;
+                break;
+            } else if (child->is_draw()) {
+                scores[i] = child->n;
+            } else if (child->is_win()) {
+                scores[i] = 0;
+            }
+        } else {
+            scores[i] = child->n;
+        }
+        if (scores[i] > max_score) {
+            max_score = scores[i];
+        }
+    }
+    for(auto i = 0u; i < scores.size(); i++) {
+        scores[i] = std::exp((scores[i] - max_score)/2);
+#if DEBUG_OUT
+        Tee<<scores[i]<<std::endl;
+#endif
+    }
+    auto index = -1;
+    if (!find_resolved_flag ) {
+        index = my_choice(scores);
+#if DEBUG_OUT
+        Tee<<"select:"<<index<<std::endl;
+#endif
+    } else {
+        auto iter = std::max_element(scores.begin(), scores.end());
+        index = std::distance(scores.begin(), iter);
+    }
+    auto child = this->root_node()->child(index);
+    this->root_node()->best_move = child->parent_move;
+}
+
+void DescentSearcherLocal::choice_best_move_random() {
+    std::vector<NNScore> scores;
+    REP(i, this->root_node()->child_len) {
+        scores.push_back(NNScore(0.0));
+    }
+    REP(i, this->root_node()->child_len) {
+        auto child = this->root_node()->child(i);
+        if (child->is_resolved()) {
+            if (child->is_lose()) {
+                REP(i, this->root_node()->child_len) {
+                    scores[i] = NNScore(0.0);
+                }
+                scores[i] = ubfm::score_win(0);
+                break;
+            } else if (child->is_draw()) {
+                scores[i] = rand_double();
+            } else if (child->is_win()) {
+                scores[i] = rand_double()/1000;
+            }
+        } else {
+            scores[i] = rand_double();
+        }
+    }
+    auto iter = std::max_element(scores.begin(), scores.end());
+    auto index = std::distance(scores.begin(), iter);
+    auto child = this->root_node()->child(index);
+    this->root_node()->best_move = child->parent_move;
+}
+
 nn::NNScore int_to_nn(const int sc) {
     if (sc >= (search::SEARCH_MATE - 100)) {
         return nn::NNScore(1);

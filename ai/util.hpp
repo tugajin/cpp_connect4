@@ -162,7 +162,7 @@ bool is_exists_file(const std::string path) {
 	return ifs.is_open();
 }
 
-int my_choice(std::vector<int>score) {
+template<typename T>int my_choice(std::vector<T>score) {
 	std::random_device seed_gen;
 	std::default_random_engine engine(seed_gen());
 	const auto sum_score =  std::accumulate(score.begin(), score.end(), 0);
