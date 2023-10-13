@@ -419,12 +419,15 @@ void DescentSearcherLocal::add_replay_buffer(ubfm::Node *node) {
 Move DescentSearcherLocal::execute_descent(game::Position &pos) {
     this->root_node()->pos = pos;
     this->search_descent(this->po_num);
-    //this->choice_best_move_e_greedy();
-    //this->choice_best_move_count();
+    if (this->thread_id == 0 || this->thread_id == 1) {
+        this->choice_best_move_e_greedy();
+    } else {
+        this->choice_best_move_count();
+    }
     //this->choice_best_move_ordinal();
     //this->choice_best_move_diff();
     //this->choice_best_move_softmax();
-    this->choice_best_move_random();
+    //this->choice_best_move_random();
     if (USE_DESCENT) {
         this->add_replay_buffer(this->root_node());        
     } else {
@@ -753,7 +756,8 @@ void DescentSearcherLocal::selfplay() {
                 break;
             }
 #if 1
-            this->po_num = 25;
+            //this->po_num = 25;
+            this->po_num = 100;
             
             auto best_move = execute_descent(pos);
            
