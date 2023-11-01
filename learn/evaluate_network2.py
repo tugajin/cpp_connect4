@@ -30,10 +30,52 @@ def read_file_to_list(file_path):
             data_list.append(line.strip())  # 改行文字を削除してリストに追加
     return data_list
 
+def evaluate_problem2():
+    # ベストプレイヤーのモデルの読み込み
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = SingleNet(drop=True)
+    model.load_state_dict(torch.load('./model/best_single.h5'))
+    model = model.to(device)
+    model.eval()
+    problem_list = read_file_to_list('../oracle/test.txt')   
+    with open("output.csv", "a") as file:
+        file.write("result,score,score2,mean,mean2,median,max,min,std\n")
+
+    for i,problem in enumerate(problem_list):
+        print(f"{i}/{len(problem_list)}")
+        split_text_list = problem.split(":")
+        key = split_text_list[0]
+        result = int(split_text_list[1])
+        state = from_hash2(key)
+        score_list = []
+        for j in range(1000):
+            score = predict(model,state,device)
+            score = score.item()
+            score_list.append(score)
+
+        lines = []
+
+        score_list = np.array(score_list)
+        model.drop = False
+        score = predict(model,state,device).item()
+        model.drop = True  
+        score2 = 0
+        mean2 = 0
+        if score > 0.2:
+            score2 = 1
+        elif score < -0.2:
+            score2 = -1
+        if np.mean(score_list) > 0.2:
+            mean2 = 1
+        elif np.mean(score_list) < -0.2:
+            mean2 = -1
+        with open("output.csv", "a") as file:
+            file.write(f"{result},{score},{score2},{np.mean(score_list)},{mean2},{np.median(score_list)},{np.max(score_list)},{np.min(score_list)},{np.std(score_list)}\n")
+
 def evaluate_problem():
     # ベストプレイヤーのモデルの読み込み
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = SingleNet()
+    model = SingleNet(drop=True)
     model.load_state_dict(torch.load('./model/best_single.h5'))
     model = model.to(device)
     model.eval()
@@ -41,7 +83,7 @@ def evaluate_problem():
     problem_list = read_file_to_list('../oracle/test.txt')    
     
     correct_num = 0
-    for problem in problem_list:
+    for i,problem in enumerate(problem_list):
         split_text_list = problem.split(":")
         key = split_text_list[0]
         result = int(split_text_list[1])
@@ -74,4 +116,4 @@ def evaluate_problem():
     
 # 動作確認
 if __name__ == '__main__':
-    evaluate_problem()
+    evaluate_problem2()

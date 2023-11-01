@@ -210,6 +210,31 @@ void my_split(std::string string,  std::string separator, std::vector<std::strin
 	}
 }
 
+template<typename T>T my_mean(std::vector<T>score) {
+	T sum = 0;
+	for(auto i = 0u; i < score.size(); i++) {
+		auto s = score[i];
+		if (std::abs(s) < 1e-10) {		
+			s = 0;
+		}
+		sum += s;
+	}
+	return sum / static_cast<T>(score.size());
+} 
+
+template<typename T>T my_std(std::vector<T>score) {
+	const auto mean = my_mean(score);
+	T var = 0;
+	for(auto i = 0u; i < score.size(); i++) {
+		T diff = mean - score[i];
+		if (std::abs(diff) < 1e-10) {
+			diff = 0.0;
+		}
+		var += std::pow(diff, 2);
+	}
+	return std::sqrt(var / static_cast<T>(score.size()));
+} 
+
 class Timer {
 
 private:

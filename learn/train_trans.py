@@ -8,8 +8,8 @@ import sys
 args = sys.argv
 num = int(args[1])
 
-merge_count()
-merge_resolved()
+#merge_count()
+#merge_resolved()
 # if num == 1 or (num != 0 and num % 10 == 0):
 #     print("pseudo")
 #     preudo_data()

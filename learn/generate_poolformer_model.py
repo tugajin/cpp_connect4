@@ -121,7 +121,7 @@ class PoolformerModel(nn.Module):
         input_channel_num = 2
         channel_num = 256
         nhead = 12
-        block_num = 4
+        block_num = 5
         square_num = 25
         self.first_encoding_ = torch.nn.Linear(input_channel_num, channel_num)
         self.encoder_ = nn.Sequential(*[Block(dim=channel_num, num_heads=nhead) for _ in range(block_num)])
